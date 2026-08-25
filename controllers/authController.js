@@ -1,38 +1,44 @@
 const User = require("../models/User");
 const Client = require("../models/Client");
-const { sendEmail } = require("../services/emailService");
-const bcrypt = require("bcrypt"); // Importamos bcrypt
+const { sendEmail } = require("../services/emailServices");
+const bcrypt = require("bcrypt");
 
 exports.registerUserAndClient = async (req, res) => {
   try {
-    // 1. Extraemos los datos del formulario
     const { correo, contrasena, rol, nombre, telefono } = req.body;
 
-    // 2. Encriptar la contraseña (hash)
-    // El número 10 es el "saltRounds", que define qué tan seguro (y pesado) es el cifrado
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(contrasena, saltRounds);
 
-    // 3. Creamos el usuario usando la contraseña encriptada (hashedPassword)
     const newUser = new User({ 
       correo, 
-      contrasena: hashedPassword, // <--- Aquí guardamos la contraseña oculta
+      contrasena: hashedPassword, 
       rol 
     });
     await newUser.save();
 
-    // 4. Creamos el documento en la colección clientes
     const newClient = new Client({ correo, nombre, telefono });
     await newClient.save();
 
-    // 5. Si todo sale bien, enviamos el correo de notificación
-    const asunto = "¡Registro exitoso!";
-    const mensaje = `Hola ${nombre}, tu registro en nuestra plataforma se ha completado exitosamente con el rol de ${rol}.`;
+    // Estructura del correo en HTML con la imagen de bienvenida incrustada
+    const asunto = "¡Bienvenido a nuestra plataforma!";
+    const htmlMensaje = `
+      <div style="font-family: Arial, sans-serif; text-align: center; color: #333;">
+        <h2>¡Hola ${nombre}, qué gusto tenerte por acá! </h2>
+        <p>Tu registro se ha completado de manera exitosa con el rol de: <strong>${rol}</strong>.</p>
+        
+        
+        
+        <img src="cid:imagenBienvenida" alt="Bienvenida" style="width: 100%; max-width: 400px; border-radius: 10px;" />
+        
+        <p style="margin-top: 20px; font-size: 12px; color: #777;">Este es un correo automático, por favor no lo respondas.</p>
+      </div>
+    `;
     
-    await sendEmail(correo, asunto, mensaje);
+    // Llamamos al servicio enviando el HTML en lugar de texto plano
+    await sendEmail(correo, asunto, htmlMensaje);
 
-    // 6. Respondemos al navegador
-    res.send("¡Usuario registrado con contraseña oculta y cliente creado con éxito!");
+    res.send("¡Usuario registrado con éxito y correo de bienvenida con imagen enviado!");
   } catch (error) {
     console.error("Error en el registro:", error);
     res.status(500).send("Hubo un error al procesar el registro.");
